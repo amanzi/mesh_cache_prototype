@@ -1,6 +1,9 @@
 #include "Kokkos_Core.hpp"
 #include "Kokkos_DualView.hpp"
 
+//
+// Note, this API is consistent with amanzi/ecoon/mesh_refactor src/mesh/MeshFramework.hh API
+//
 struct MeshFramework {
   MeshFramework(const int size): mesh_size_(size) {}
 
@@ -27,20 +30,55 @@ private:
 };
 
 
+// NOTE: need this...
+template<typename Data, typename ExecutionSpace = Kokkos::DefaultExecutionSpace>
+struct CSR;
+
+
+using Entity_ID = int;
+
+//
+// Note, this API is consistent with amanzi/ecoon/mesh_refactor src/mesh/MeshCache.hh API.
+//
+// If it helped, these could be dual views?
+//
+template<typename ExecutionSpace = Kokkos::DefaultExecutionSpace>
+struct MeshCache {
+  using Double_View = Kokkos::View<double*, ExecutionSpace>; // ?????
+  using cDouble_View = Kokkos::View<const double*, ExecutionSpace>; // ?????
+  using Entity_ID_View = Kokkos::View<Entity_ID*, ExecutionSpace>;
+  using cEntity_ID_View = Kokkos::View<const Entity_ID*, ExecutionSpace>;
+
+  MeshCache(Teuchos::RCP<MeshFramework>& mf); // note, feel free to make shared_ptr or raw ptr for now...
+
+  double getCellVolume(const Entity_ID c) const;
+  Double_View cell_volumes; // note, this is public and can be used inside kernels directly
+  // is there a const problem with exposing this directly?  Specifically,
+  // assume you have a const MeshCache.  Can you still change
+  // mc.cell_volumes(3) = 1?  Should this be cDoubleView?
+
+  std::size_t getCellNumFaces(const Entity_ID c) const;
+  cEntity_ID_View getCellFaces(const Entity_ID c) const;
+  Entity_ID getCellFace(Entity_ID c, std::size_t i) const;
+  CRS<Entity_ID, ExecutionSpace> cell_faces;
+}
+
+
+
 
 // MeshCache templated on the memory type
 // Defaulted to the device memory space
-template<typename MEM = Kokkos::DefaultExecutionSpace>
+template<typename ExecutionSpace = Kokkos::DefaultExecutionSpace>
 struct MeshCache {
 
   // Type to get CRS on DualViews
-  template<typename T, typename MEM>
+  template<typename T, typename ExecutionSpace>
   struct DualCrs{
-    Kokkos::DualView<int*, MEM> row_map;
-    Kokkos::DualView<T, MEM> entries;
+    Kokkos::DualView<int*, ExecutionSpace> row_map;
+    Kokkos::DualView<T, ExecutionSpace> entries;
   };
 
-  // Building a Mesh Cache on MEM memory space.
+  // Building a Mesh Cache on ExecutionSpace memory space.
   // Retrieve/compute data on the Host from the Mesh Framework then copy to device
   MeshCache(MeshFramework* mf): framework_mesh_(mf), mesh_size_(mf->meshSize()) {
     // Init data on Host
@@ -66,7 +104,7 @@ struct MeshCache {
   }
 
   // This function can just be overloaded with the Kokkos::View type.
-  KOKKOS_INLINE_FUNCTION void getCellFaces(int id, Kokkos::View<const int*,MEM>& ret) const {
+  KOKKOS_INLINE_FUNCTION void getCellFaces(int id, Kokkos::View<const int*,ExecutionSpace>& ret) const {
       ret = Kokkos::subview(value_2d_.entries.view_device(),
         Kokkos::make_pair(value_2d_.row_map.view_device()(id),
         value_2d_.row_map.view_device()(id + 1)));
@@ -90,19 +128,19 @@ struct MeshCache {
 
   // Using C++ 17 with constexpr
   #if V2
-  template<typename FMEM = Kokkos::HostSpace>
+  template<typename FExecutionSpace = Kokkos::HostSpace>
   int getCellVolume(int i) const {
-    if constexpr(std::is_same<Kokkos::HostSpace,FMEM>::value) {
+    if constexpr(std::is_same<Kokkos::HostSpace,FExecutionSpace>::value) {
       return value_1d_.view_host()(i);
-    } else if (std::is_same<Kokkos::CudaSpace,FMEM>::value) {
+    } else if (std::is_same<Kokkos::CudaSpace,FExecutionSpace>::value) {
       return value_1d_.view_device()(i);
     }
   }
   #endif
 
 private:
-  Kokkos::DualView<int*,MEM> value_1d_;
-  DualCrs<int*,MEM> value_2d_;
+  Kokkos::DualView<int*,ExecutionSpace> value_1d_;
+  DualCrs<int*,ExecutionSpace> value_2d_;
   MeshFramework* framework_mesh_;
   int mesh_size_;
 };
