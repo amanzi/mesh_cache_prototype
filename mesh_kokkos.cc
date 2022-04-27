@@ -5,12 +5,12 @@ struct MeshFramework {
   MeshFramework(const int size): mesh_size_(size) {}
 
   // In MeshFramework this function "compute" the result on Host
-  int get1dvalue(const int i) const {
+  int getCellVolume(const int i) const {
     return i;
   }
 
   // In MeshFramework this function "compute" the result on Host
-  void get2dvalue(const int id, Kokkos::View<const int*,Kokkos::HostSpace>& ret) const {
+  void getCellFaces(const int id, Kokkos::View<const int*,Kokkos::HostSpace>& ret) const {
     // 2 Elements per entries
     Kokkos::View<int*, Kokkos::HostSpace> tmp("",2);
     for(int i = 0 ; i < 2; ++i){
@@ -48,12 +48,12 @@ struct MeshCache {
     Kokkos::resize(value_2d_.row_map,mesh_size_+1);
     Kokkos::resize(value_2d_.entries,mesh_size_*2);
     for(int i = 0 ; i < mesh_size_ ; ++i){
-      value_1d_.view_host()(i) = mf->get1dvalue(i);
+      value_1d_.view_host()(i) = mf->getCellVolume(i);
     }
     for(int i = 0 ; i < mesh_size_ ; ++i){
       value_2d_.row_map.view_host()(i) = i*2;
       Kokkos::View<const int*, Kokkos::HostSpace> tmp;
-      mf->get2dvalue(i,tmp);
+      mf->getCellFaces(i,tmp);
       for(int j = 0 ; j < 2; ++j){
         value_2d_.entries.view_host()(i*2+j) = tmp(j);
       }
@@ -66,12 +66,12 @@ struct MeshCache {
   }
 
   // This function can just be overloaded with the Kokkos::View type.
-  KOKKOS_INLINE_FUNCTION void get2dvalue(int id, Kokkos::View<const int*,MEM>& ret) const {
+  KOKKOS_INLINE_FUNCTION void getCellFaces(int id, Kokkos::View<const int*,MEM>& ret) const {
       ret = Kokkos::subview(value_2d_.entries.view_device(),
         Kokkos::make_pair(value_2d_.row_map.view_device()(id),
         value_2d_.row_map.view_device()(id + 1)));
   }
-  void get2dvalue(int id, Kokkos::View<const int*,Kokkos::HostSpace>& ret) const {
+  void getCellFaces(int id, Kokkos::View<const int*,Kokkos::HostSpace>& ret) const {
       Kokkos::subview(value_2d_.entries.view_host(),
         Kokkos::make_pair(value_2d_.row_map.view_host()(id),
         value_2d_.row_map.view_host()(id + 1)));
@@ -79,19 +79,19 @@ struct MeshCache {
 
   // The following function cannot be overloaded with parameters
   // Default: only use Device function
-  KOKKOS_INLINE_FUNCTION int get1dvalue(int i) const {
+  KOKKOS_INLINE_FUNCTION int getCellVolume(int i) const {
     return value_1d_.view_device()(i);
   }
 
   // Duplicate function with host decoration
-  int get1dvalue_host(int i) const {
+  int getCellVolume_host(int i) const {
     return value_1d_.view_host()(i);
   }
 
   // Using C++ 17 with constexpr
   #if V2
   template<typename FMEM = Kokkos::HostSpace>
-  int get1dvalue(int i) const {
+  int getCellVolume(int i) const {
     if constexpr(std::is_same<Kokkos::HostSpace,FMEM>::value) {
       return value_1d_.view_host()(i);
     } else if (std::is_same<Kokkos::CudaSpace,FMEM>::value) {
@@ -120,10 +120,10 @@ void test_mesh()  {
     // Only accessible on Host
     for(int i = 0 ; i < ncells ; ++i){
       // 1d
-      assert(m.get1dvalue(i) == i);
+      assert(m.getCellVolume(i) == i);
       // 2d
       Kokkos::View<const int*, Kokkos::HostSpace> v_h;
-      m.get2dvalue(2, v_h);
+      m.getCellFaces(2, v_h);
       for(int j = 0 ; j < 2 ; ++j){
         assert(v_h(j) == j*10);
       }
@@ -136,10 +136,10 @@ void test_mesh()  {
       ncells,
       KOKKOS_LAMBDA(const int i){
         // 1d
-        assert(mc.get1dvalue(i) == i);
+        assert(mc.getCellVolume(i) == i);
         // 2d
         Kokkos::View<const int*, DeviceSpace> v_d;
-        mc.get2dvalue(2,v_d);
+        mc.getCellFaces(2,v_d);
         for(int j = 0 ; j < 2 ; ++j){
           assert(v_d(j) == j*10);
         }
@@ -147,10 +147,10 @@ void test_mesh()  {
     // 2. Host Access
     for(int i = 0 ; i < ncells ; ++i){
       // 1d
-      assert(mc.get1dvalue_host(i) == i);
+      assert(mc.getCellVolume_host(i) == i);
       // 2d
       Kokkos::View<const int*, Kokkos::HostSpace> v_h;
-      mc.get2dvalue(2, v_h);
+      mc.getCellFaces(2, v_h);
     }
 } // test_mesh
 
