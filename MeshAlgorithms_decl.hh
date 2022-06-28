@@ -17,7 +17,9 @@ computeCellVolumes(Mesh_type& m);
 } // namespace Impl
 
 template<memory MEM> struct MeshCache;
+template<memory MEM> struct MeshCacheDumb;
 struct MeshFramework;
+
 
 
 // MeshAlgorithm generic interface
@@ -27,9 +29,13 @@ struct MeshAlgorithms {
   virtual Kokkos::View<double*, typename Space<MEM>::execution_space>
     computeCellVolumes(const MeshCache<MEM>& m) const = 0;
   virtual Kokkos::View<double*, typename Space<MEM>::execution_space>
+    computeCellVolumes(const MeshCacheDumb<MEM>& m) const = 0;
+  virtual Kokkos::View<double*, typename Space<MEM>::execution_space>
     computeCellVolumes(const MeshFramework& m) const = 0;
   virtual Kokkos::View<Coordinate*, typename Space<MEM>::execution_space>
     computeCellCentroids(const MeshCache<MEM>& m) const = 0;
+  virtual Kokkos::View<Coordinate*, typename Space<MEM>::execution_space>
+    computeCellCentroids(const MeshCacheDumb<MEM>& m) const = 0;
   virtual Kokkos::View<Coordinate*, typename Space<MEM>::execution_space>
     computeCellCentroids(const MeshFramework& m) const = 0;
   virtual MeshAlgorithms<device>* create_device() = 0;

@@ -25,6 +25,16 @@ view(DV_type& dv) {
   }
 }
 
+// template<memory MEM, typename DV_type>
+// auto
+// view(DV_type& dv) {
+//   if constexpr (MEM == device){
+//     return dv.view_device();
+//   } else {
+//     return dv.view_host();
+//   }
+// }
+
 
 
 

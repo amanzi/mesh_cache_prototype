@@ -14,6 +14,12 @@ MeshAlgorithmsDefault<MEM>::computeCellVolumes(const MeshCache<MEM>& m) const {
 
 template<memory MEM>
 Kokkos::View<double*, typename Space<MEM>::execution_space>
+MeshAlgorithmsDefault<MEM>::computeCellVolumes(const MeshCacheDumb<MEM>& m) const {
+  return Impl::computeCellVolumes(m);
+}
+
+template<memory MEM>
+Kokkos::View<double*, typename Space<MEM>::execution_space>
 MeshAlgorithmsDefault<MEM>::computeCellVolumes(const MeshFramework& m) const {
   return Impl::computeCellVolumes(m);
 }
@@ -21,6 +27,12 @@ MeshAlgorithmsDefault<MEM>::computeCellVolumes(const MeshFramework& m) const {
 template<memory MEM>
 Kokkos::View<Coordinate*, typename Space<MEM>::execution_space>
 MeshAlgorithmsDefault<MEM>::computeCellCentroids(const MeshCache<MEM>& m) const {
+  return Impl::computeCellCentroids(m);
+}
+
+template<memory MEM>
+Kokkos::View<Coordinate*, typename Space<MEM>::execution_space>
+MeshAlgorithmsDefault<MEM>::computeCellCentroids(const MeshCacheDumb<MEM>& m) const {
   return Impl::computeCellCentroids(m);
 }
 

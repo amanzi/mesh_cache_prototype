@@ -2,8 +2,14 @@
 #include "MeshFramework1D.hh"
 #include "MeshCache_impl.hh"
 
+#include "MeshCacheDumb_decl.hh"
+#include "MeshCacheDumb_impl.hh"
+
+#define NCELLS 5000;
+#define NTIMES 100000;
+
 void test_mesh()  {
-  const int ncells = 10;
+  const int ncells = NCELLS;
   MeshFramework1D m(ncells+1);
 
   // ------- Mesh Framework -------
@@ -34,7 +40,7 @@ void test_mesh()  {
   std::cout<<"Mesh Cache Device"<<std::endl;
 
   MeshCache<device> mc(&m);
-  // 1. Device Access (Default type of the mesh cache)
+  // Device access correctness
   Kokkos::parallel_for(
     1, KOKKOS_LAMBDA(const int i){
       Kokkos::View<const int*, Kokkos::DefaultExecutionSpace> v_d;
@@ -55,6 +61,22 @@ void test_mesh()  {
         printf("ERROR %.1f != %d \n",mc.getCellVolume(i),i+1);
     });
 
+  // Device access timing
+  const int ntimes = NTIMES;
+  {
+    Kokkos::Timer timer;
+    double max = 0.;
+    for (int count=0; count != ntimes; ++count) {
+      double total = 0.;
+      Kokkos::parallel_reduce(
+        ncells, KOKKOS_LAMBDA(const int i, double& lsum){
+          lsum += mc.getCellVolume(i);
+        }, total);
+      max = std::max(max, total);
+    }
+    double time = timer.seconds();
+    std::cout << "MeshCache on device: " << time/ntimes << " got " << max << std::endl;
+  }
 
   // ------- Mesh Cache on Host -------
   std::cout<<"Mesh Cache Host"<<std::endl;
@@ -70,12 +92,49 @@ void test_mesh()  {
       printf("ERROR %d != %d \n",mc_h.getCellNode(2,j),2+j);
   }
 
-  for(int i = 0 ; i < ncells ; ++i){
+  for(int i = 0 ; i != ncells ; ++i){
     if(mc_h.getCellVolume(i) != i+1)
       printf("ERROR %.1f != %d \n",mc_h.getCellVolume(i),i+1);
   }
-}
 
+  // Device access timing
+  {
+    Kokkos::Timer timer;
+    double max = 0.;
+    for (int count=0; count != ntimes; ++count) {
+      double total = 0.;
+      for (int i=0; i!=ncells; ++i) {
+          total += mc.getCellVolume(i);
+      }
+      max = std::max(max, total);
+    }
+    double time = timer.seconds();
+    std::cout << "MeshCache on host: " << time/ntimes << " got " << max << std::endl;
+  }
+
+  // -------- MeshCacheDumb only on host ----
+  std::cout << "Mesh Cache DUMB on host" << std::endl;
+  MeshCacheDumb<host> mcd(&m);
+  for (int i = 0; i != ncells; ++i) {
+    if (mcd.getCellVolume(i) != i+1)
+      printf("ERROR %.1f != %d \n", mcd.getCellVolume(i), i+1);
+  }
+
+  // Device access timing
+  {
+    Kokkos::Timer timer;
+    double max = 0.;
+    for (int count=0; count != ntimes; ++count) {
+      double total = 0.;
+      for (int i=0; i!=ncells; ++i) {
+          total += mcd.getCellVolume(i);
+      }
+      max = std::max(max, total);
+    }
+    double time = timer.seconds();
+    std::cout << "MeshCacheDumb on host: " << time/ntimes << " got " << max << std::endl;
+  }
+}
 
 
 
