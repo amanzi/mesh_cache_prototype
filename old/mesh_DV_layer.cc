@@ -55,6 +55,7 @@ template<memory MEM>
 struct MeshAlgorithm{
   virtual void computeCellGeometry(MeshCache<MEM>& m) = 0;
   virtual void computeCellGeometry(MeshFramework& m) = 0;
+  
   virtual MeshAlgorithm<device>* create_device() = 0; 
   virtual MeshAlgorithm<host>* create_host() = 0; 
 };
@@ -69,7 +70,7 @@ struct MeshAlgorithmsDefault: MeshAlgorithm<MEM>  {
   }
   virtual MeshAlgorithmsDefault<device>* create_device(){
     return new MeshAlgorithmsDefault<device>(); 
-  } 
+  }
   virtual MeshAlgorithmsDefault<host>* create_host(){
     return new MeshAlgorithmsDefault<host>(); 
   }
@@ -162,7 +163,6 @@ struct MeshCacheData{
   Kokkos::DualView<double*,Kokkos::DefaultExecutionSpace> value_1d_;
   DualCrs<Entity_ID*> value_2d_;
   Kokkos::DualView<Coordinate*,Kokkos::DefaultExecutionSpace> cell_centroids;
-
 
   DualCrs<Entity_ID*> cell_nodes;
   Kokkos::DualView<Coordinate*,Kokkos::DefaultExecutionSpace> node_coordinates;
@@ -318,14 +318,11 @@ struct MeshCache {
   int mesh_size_;
 };
 
-
-
 void test_mesh()  {
 
     using DeviceSpace = Kokkos::CudaSpace;
     const int ncells = 10;
     MeshFramework m(ncells);
-
 
     // ------- Mesh Framework -------
     std::cout<<"Mesh Framework"<<std::endl;
